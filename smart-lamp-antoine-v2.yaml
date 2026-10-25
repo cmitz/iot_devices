@@ -43,6 +43,7 @@ wifi:
     ssid: ${friendly_devicename}
     # password: !secret adoption_wifi_ap_password
     password: gefeliciteerd
+    ap_timeout: 60s
 captive_portal:  
   
 esp8266:
