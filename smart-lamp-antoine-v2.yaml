@@ -1,0 +1,129 @@
+---
+### Wemos D1 Mini ###
+
+substitutions:
+  devicename: smart-lamp-antoine-v2
+  friendly_devicename: Smart Lamp Antoine V2
+  adc_update_frequency: 100ms
+  light_default_transition_rate: 250ms
+
+esphome:
+  name: $devicename
+  friendly_name: $friendly_devicename
+  comment: $friendly_devicename
+  project:
+    name: caspersmits.iot_devices
+    version: "1.0.0"
+  # Adding mac suffix is only useful when giving the device away
+  name_add_mac_suffix: true
+
+
+dashboard_import:
+  # Voorbeeld: vervangen door je echte repository en bestand
+  package_import_url: github://cmitz/iot_devices/smart-lamp-antoine-v2.yaml@v1.0.0
+  import_full_config: true
+  
+api:
+  # encryption:
+  #   key: !secret api_encryption_key
+  reboot_timeout: 0s
+
+ota:
+  - platform: esphome
+    # encryption:
+      
+time:
+  - platform: homeassistant
+
+wifi:
+  # ssid: !secret wifi_ssid
+  # password: !secret wifi_password
+  # Enable fallback hotspot (captive portal) in case wifi connection fails
+  ap:
+    ssid: ${friendly_devicename}
+    # password: !secret adoption_wifi_ap_password
+    password: gefeliciteerd
+captive_portal:  
+  
+esp8266:
+  board: d1_mini
+  restore_from_flash: true
+
+preferences:
+  flash_write_interval: 10s
+
+# Override ADC logger to scale down logging a lot
+logger:
+  level: DEBUG
+  logs:
+    sensor: WARN
+    adc: WARN
+    light: WARN
+
+debug:
+  update_interval: 30s
+  
+text_sensor:
+  - platform: debug
+    reset_reason:
+      name: "${friendly_devicename} Reset Reason"
+
+# PWM output
+output:
+  - platform: esp8266_pwm
+    pin: D6
+    frequency: 1kHz
+    id: pwm_output
+
+light:
+  - platform: monochromatic
+    output: pwm_output
+    id: light_entity
+    name: ${friendly_devicename} Light
+    default_transition_length: ${light_default_transition_rate}  
+    restore_mode: RESTORE_DEFAULT_OFF
+
+globals:
+  - id: prev_dial_value
+    type: float
+    restore_value: yes
+    initial_value: '0'
+
+sensor:
+  - platform: debug
+    free:
+      name: "${friendly_devicename} Free Heap"
+    loop_time:
+      name: "${friendly_devicename} Loop Time"
+  - platform: adc
+    pin: A0
+    name: "${friendly_devicename} Dial"
+    update_interval: ${adc_update_frequency}
+    internal: true
+    filters:
+      - calibrate_linear:
+          - 0.01 -> 0.0
+          - 0.99 -> 1.0
+      - clamp:
+          min_value: 0.0
+          max_value: 1.0
+      # Reduce ADC-noise
+      - exponential_moving_average:
+          alpha: 0.7
+          send_every: 4
+    on_value: 
+      then:
+        - lambda: !lambda |-
+            const float deadband = 0.02;
+            const float new_value = x;
+            
+            if (fabs(new_value - id(prev_dial_value)) < deadband) {
+              return;
+            }
+
+            id(prev_dial_value) = new_value;
+
+            auto call = id(light_entity).turn_on();
+            call.set_brightness(new_value);
+            call.set_transition_length(${light_default_transition_rate});
+            call.perform();
