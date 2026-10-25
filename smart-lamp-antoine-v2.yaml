@@ -13,14 +13,14 @@ esphome:
   comment: $friendly_devicename
   project:
     name: caspersmits.iot_devices
-    version: "1.0.0"
+    version: "1.0"
   # Adding mac suffix is only useful when giving the device away
   name_add_mac_suffix: true
 
 
 dashboard_import:
   # Voorbeeld: vervangen door je echte repository en bestand
-  package_import_url: github://cmitz/iot_devices/smart-lamp-antoine-v2.yaml@v1.0.0
+  package_import_url: github://cmitz/iot_devices/smart-lamp-antoine-v2.yaml@v1.0.1
   import_full_config: true
   
 api:
